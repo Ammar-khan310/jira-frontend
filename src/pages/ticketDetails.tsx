@@ -2,10 +2,15 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { getTicketById } from "../api/ticketService";
+import { useAppSelector } from "../hooks/reduxHooks";
 import type { Ticket } from "../redux/slices/ticketSlice";
 
 function TicketDetails() {
   const { id } = useParams();
+
+  const selectedWorkspace = useAppSelector(
+    (state) => state.workspace.selectedWorkspace,
+  );
 
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -13,8 +18,18 @@ function TicketDetails() {
 
   useEffect(() => {
     const loadTicket = async () => {
+      if (!selectedWorkspace) {
+        setError("Please select a workspace.");
+        setLoading(false);
+        return;
+      }
+
       try {
-        const response = await getTicketById(Number(id));
+        setLoading(true);
+        setError("");
+
+        const response = await getTicketById(Number(id), selectedWorkspace.id);
+
         setTicket(response.ticket ?? response);
       } catch {
         setError("Could not load ticket details.");
@@ -23,13 +38,13 @@ function TicketDetails() {
       }
     };
 
-    if (id && Number.isFinite(Number(id))) {
+    if (id && Number.isFinite(Number(id)) && Number(id) > 0) {
       loadTicket();
     } else {
       setError("Invalid ticket ID.");
       setLoading(false);
     }
-  }, [id]);
+  }, [id, selectedWorkspace]);
 
   if (loading) {
     return (
@@ -45,8 +60,8 @@ function TicketDetails() {
         <div className="ticket-details-card">
           <h1>Ticket unavailable</h1>
           <p className="ticket-details-error">{error || "Ticket not found."}</p>
-          <Link className="ticket-details-back" to="/dashboard">
-            Back to Dashboard
+          <Link className="ticket-details-back" to="/tickets">
+            Back to Tickets
           </Link>
         </div>
       </main>
@@ -56,9 +71,10 @@ function TicketDetails() {
   return (
     <main className="ticket-details-page">
       <div className="ticket-details-top">
-        <Link className="ticket-details-back" to="/dashboard">
-          ← Back to Dashboard
+        <Link className="ticket-details-back" to="/tickets">
+          ← Back to Tickets
         </Link>
+
         <span className="ticket-details-id">Ticket #{ticket.id}</span>
       </div>
 
@@ -106,6 +122,11 @@ function TicketDetails() {
             <div className="ticket-info-item">
               <span>Assigned To</span>
               <strong>{ticket.assignedTo?.name || "Not available"}</strong>
+            </div>
+
+            <div className="ticket-info-item">
+              <span>Created By</span>
+              <strong>{ticket.createdBy?.name || "Not available"}</strong>
             </div>
           </div>
         </div>

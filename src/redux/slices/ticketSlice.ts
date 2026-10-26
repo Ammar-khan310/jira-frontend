@@ -11,25 +11,61 @@ export interface Ticket {
     name: string;
     email: string;
   };
+  createdBy?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  workspaceId?: number;
+}
+
+interface FetchTicketsParams {
+  workspaceId: number;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+interface TicketPagination {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 interface TicketState {
   tickets: Ticket[];
   loading: boolean;
   error: string | null;
+  pagination: TicketPagination;
 }
 
 const initialState: TicketState = {
   tickets: [],
   loading: false,
   error: null,
+  pagination: {
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
+  },
 };
 
 export const fetchTickets = createAsyncThunk(
   "tickets/fetchTickets",
-  async () => {
-    const response = await getAllTickets();
-    return response.tickets as Ticket[];
+  async (params: FetchTicketsParams) => {
+    const response = await getAllTickets(
+      params.workspaceId,
+      params.search ?? "",
+      params.page ?? 1,
+      params.limit ?? 10,
+    );
+
+    return response as {
+      tickets: Ticket[];
+      pagination: TicketPagination;
+    };
   },
 );
 
@@ -70,7 +106,8 @@ const ticketSlice = createSlice({
       })
       .addCase(fetchTickets.fulfilled, (state, action) => {
         state.loading = false;
-        state.tickets = action.payload;
+        state.tickets = action.payload.tickets;
+        state.pagination = action.payload.pagination;
       })
       .addCase(fetchTickets.rejected, (state, action) => {
         state.loading = false;

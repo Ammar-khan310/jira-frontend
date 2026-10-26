@@ -4,24 +4,38 @@ interface CreateTicketData {
   title: string;
   description: string;
   assignedToId: number;
+  workspaceId: number;
 }
 
 interface UpdateTicketData {
   title: string;
   description: string;
+  workspaceId: number;
 }
 
 interface UpdateStatusData {
   status: string;
+  workspaceId: number;
 }
 
-export const getAllTickets = async () => {
-  const response = await api.get("/tickets");
+export const getAllTickets = async (
+  workspaceId: number,
+  search = "",
+  page = 1,
+  limit = 10,
+) => {
+  const response = await api.get("/tickets", {
+    params: { workspaceId, search, page, limit },
+  });
+
   return response.data;
 };
 
-export const getTicketById = async (id: number) => {
-  const response = await api.get(`/tickets/${id}`);
+export const getTicketById = async (id: number, workspaceId: number) => {
+  const response = await api.get(`/tickets/${id}`, {
+    params: { workspaceId },
+  });
+
   return response.data;
 };
 
@@ -43,7 +57,10 @@ export const updateTicketStatus = async (
   return response.data;
 };
 
-export const deleteTicket = async (id: number) => {
-  const response = await api.delete(`/tickets/${id}`);
+export const deleteTicket = async (id: number, workspaceId: number) => {
+  const response = await api.delete(`/tickets/${id}`, {
+    params: { workspaceId },
+  });
+
   return response.data;
 };

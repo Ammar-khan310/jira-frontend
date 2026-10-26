@@ -1,30 +1,65 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../hooks/reduxHooks";
 import { fetchTickets, type Ticket } from "../redux/slices/ticketSlice";
-import { Link } from "react-router-dom";
 import {
   updateTicketStatus,
   deleteTicket,
   editTicket,
 } from "../api/ticketService";
-import { useEffect, useState } from "react";
 
 function TicketList() {
   const dispatch = useAppDispatch();
+
+  const { tickets, loading, error, pagination } = useAppSelector(
+    (state) => state.tickets,
+  );
+
+  const selectedWorkspace = useAppSelector(
+    (state) => state.workspace.selectedWorkspace,
+  );
+
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
 
-  const { tickets, loading, error } = useAppSelector((state) => state.tickets);
-
   useEffect(() => {
-    dispatch(fetchTickets());
-  }, [dispatch]);
+    if (!selectedWorkspace) return;
+
+    dispatch(
+      fetchTickets({
+        workspaceId: selectedWorkspace.id,
+        search,
+        page,
+        limit: 10,
+      }),
+    );
+  }, [dispatch, selectedWorkspace, search, page]);
+
+  const reloadTickets = () => {
+    if (!selectedWorkspace) return;
+
+    dispatch(
+      fetchTickets({
+        workspaceId: selectedWorkspace.id,
+        search,
+        page,
+        limit: 10,
+      }),
+    );
+  };
 
   const handleStatusChange = async (ticket: Ticket, status: string) => {
     try {
-      await updateTicketStatus(ticket.id, { status });
-      dispatch(fetchTickets());
+      await updateTicketStatus(ticket.id, {
+        status,
+        workspaceId: selectedWorkspace!.id,
+      });
+
+      reloadTickets();
     } catch {
       alert("Could not update ticket status.");
     }
@@ -35,11 +70,11 @@ function TicketList() {
       "Are you sure you want to delete this ticket?",
     );
 
-    if (!confirmed) return;
+    if (!confirmed || !selectedWorkspace) return;
 
     try {
-      await deleteTicket(ticketId);
-      dispatch(fetchTickets());
+      await deleteTicket(ticketId, selectedWorkspace.id);
+      reloadTickets();
     } catch {
       alert("Could not delete ticket.");
     }
@@ -52,21 +87,27 @@ function TicketList() {
   };
 
   const handleSaveEdit = async (ticketId: number) => {
+    if (!selectedWorkspace) return;
+
     try {
       await editTicket(ticketId, {
         title: editTitle,
         description: editDescription,
+        workspaceId: selectedWorkspace.id,
       });
 
       setEditingId(null);
       setEditTitle("");
       setEditDescription("");
-
-      dispatch(fetchTickets());
+      reloadTickets();
     } catch {
       alert("Could not update ticket.");
     }
   };
+
+  if (!selectedWorkspace) {
+    return <p className="ticket-message">Please select a workspace.</p>;
+  }
 
   if (loading) {
     return <p className="ticket-message">Loading tickets...</p>;
@@ -80,19 +121,31 @@ function TicketList() {
     <div className="ticket-list">
       <div className="ticket-list-heading">
         <div>
-          <h2>All Tickets</h2>
-          <p>View and manage your project tickets.</p>
+          <h2>Tickets</h2>
+          <p>View and manage tickets in {selectedWorkspace.name}.</p>
         </div>
 
         <span className="ticket-count">
-          {tickets.length} {tickets.length === 1 ? "Ticket" : "Tickets"}
+          {pagination.total} {pagination.total === 1 ? "Ticket" : "Tickets"}
         </span>
+      </div>
+
+      <div className="ticket-search">
+        <input
+          type="text"
+          placeholder="Search by ticket title or ID..."
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
+        />
       </div>
 
       {tickets.length === 0 ? (
         <div className="ticket-empty">
-          <h3>No tickets yet</h3>
-          <p>Create a ticket above to get started.</p>
+          <h3>No tickets found</h3>
+          <p>Try another search or create a new ticket.</p>
         </div>
       ) : (
         <div className="ticket-grid">
@@ -199,6 +252,26 @@ function TicketList() {
           ))}
         </div>
       )}
+
+      <div className="ticket-pagination">
+        <button
+          disabled={page <= 1}
+          onClick={() => setPage((currentPage) => currentPage - 1)}
+        >
+          Previous
+        </button>
+
+        <span>
+          Page {pagination.page} of {pagination.totalPages}
+        </span>
+
+        <button
+          disabled={page >= pagination.totalPages}
+          onClick={() => setPage((currentPage) => currentPage + 1)}
+        >
+          Next
+        </button>
+      </div>
     </div>
   );
 }

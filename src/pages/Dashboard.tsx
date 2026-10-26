@@ -8,11 +8,20 @@ function Dashboard() {
   const navigate = useNavigate();
 
   const user = useAppSelector((state) => state.auth.user);
+  const selectedWorkspace = useAppSelector(
+    (state) => state.workspace.selectedWorkspace,
+  );
   const { tickets, loading, error } = useAppSelector((state) => state.tickets);
 
   useEffect(() => {
-    dispatch(fetchTickets());
-  }, [dispatch]);
+    if (selectedWorkspace?.id) {
+      dispatch(
+        fetchTickets({
+          workspaceId: selectedWorkspace.id,
+        }),
+      );
+    }
+  }, [dispatch, selectedWorkspace?.id]);
 
   const totalTickets = tickets.length;
   const todoTickets = tickets.filter(
