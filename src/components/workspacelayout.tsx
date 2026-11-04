@@ -25,6 +25,12 @@ function WorkspaceLayout() {
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState("");
 
+  const [showInviteForm, setShowInviteForm] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [creatingInvite, setCreatingInvite] = useState(false);
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [inviteLink, setInviteLink] = useState("");
+
   const fetchWorkspaces = async () => {
     try {
       dispatch(setWorkspaceLoading(true));
@@ -61,7 +67,6 @@ function WorkspaceLayout() {
       setCreating(true);
 
       const response = await api.post("/workspaces", { name });
-
       const newWorkspace = response.data.workspace;
 
       if (!newWorkspace) {
@@ -87,6 +92,71 @@ function WorkspaceLayout() {
       );
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleCreateInvite = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+
+    setInviteMessage("");
+    setInviteLink("");
+
+    if (!selectedWorkspace) {
+      setInviteMessage("Pehle workspace select karo.");
+      return;
+    }
+
+    const email = inviteEmail.trim().toLowerCase();
+
+    if (!email) {
+      setInviteMessage("Member ki email enter karo.");
+      return;
+    }
+
+    try {
+      setCreatingInvite(true);
+
+      const response = await api.post(
+        `/workspace-invites/${selectedWorkspace.id}/invite`,
+        { email },
+      );
+
+      const token = response.data.invitation?.inviteToken;
+
+      if (!token) {
+        setInviteMessage("Invitation token response mein nahi mila.");
+        return;
+      }
+
+      const link = `${window.location.origin}/accept-invite?token=${encodeURIComponent(token)}`;
+
+      setInviteLink(link);
+      setInviteMessage(
+        "Invitation create ho gayi! Link copy karke member ko share karo.",
+      );
+      setInviteEmail("");
+    } catch (error: any) {
+      console.error("Create invitation error:", error);
+
+      setInviteMessage(
+        error.response?.data?.message ||
+          "Invitation create nahi ho saki. Please try again.",
+      );
+    } finally {
+      setCreatingInvite(false);
+    }
+  };
+
+  const handleCopyInviteLink = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setInviteMessage("Invitation link copy ho gaya!");
+    } catch {
+      setInviteMessage(
+        "Link copy nahi hua. Link ko manually select karke copy karo.",
+      );
     }
   };
 
@@ -121,6 +191,8 @@ function WorkspaceLayout() {
 
               if (workspace) {
                 dispatch(setSelectedWorkspace(workspace));
+                setInviteMessage("");
+                setInviteLink("");
               }
             }}
           >
@@ -172,6 +244,78 @@ function WorkspaceLayout() {
             </form>
           )}
 
+          {selectedWorkspace?.role === "OWNER" && (
+            <div>
+              <button
+                type="button"
+                className="sidebar-link"
+                onClick={() => {
+                  setShowInviteForm(!showInviteForm);
+                  setInviteMessage("");
+                  setInviteLink("");
+                }}
+              >
+                + Invite Member
+              </button>
+
+              {showInviteForm && (
+                <form onSubmit={handleCreateInvite}>
+                  <label htmlFor="invite-email">Registered member email</label>
+
+                  <input
+                    id="invite-email"
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(event) => setInviteEmail(event.target.value)}
+                    placeholder="member@example.com"
+                    required
+                  />
+
+                  <button type="submit" disabled={creatingInvite}>
+                    {creatingInvite ? "Creating invite..." : "Generate Link"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowInviteForm(false);
+                      setInviteEmail("");
+                      setInviteMessage("");
+                      setInviteLink("");
+                    }}
+                  >
+                    Cancel
+                  </button>
+
+                  {inviteMessage && <p role="status">{inviteMessage}</p>}
+
+                  {inviteLink && (
+                    <div>
+                      <label htmlFor="invite-link">Invitation link</label>
+
+                      <input
+                        id="invite-link"
+                        type="text"
+                        value={inviteLink}
+                        readOnly
+                        onFocus={(event) => event.target.select()}
+                      />
+
+                      <button type="button" onClick={handleCopyInviteLink}>
+                        Copy Invite Link
+                      </button>
+
+                      <p>
+                        Link 24 hours mein expire hoga aur sirf ek baar use kiya
+                        ja sakta hai.
+                      </p>
+                    </div>
+                  )}
+                </form>
+              )}
+            </div>
+          )}
+
           {message && <p role="status">{message}</p>}
         </div>
 
@@ -183,7 +327,7 @@ function WorkspaceLayout() {
               `sidebar-link ${isActive ? "active" : ""}`
             }
           >
-            <span>▦</span> Dashboard
+            Dashboard
           </NavLink>
 
           <NavLink
@@ -192,7 +336,7 @@ function WorkspaceLayout() {
               `sidebar-link ${isActive ? "active" : ""}`
             }
           >
-            <span>＋</span> Create Ticket
+            Create Ticket
           </NavLink>
 
           <NavLink
@@ -201,7 +345,7 @@ function WorkspaceLayout() {
               `sidebar-link ${isActive ? "active" : ""}`
             }
           >
-            <span>☷</span> All Tickets
+            All Tickets
           </NavLink>
 
           <NavLink
@@ -210,7 +354,7 @@ function WorkspaceLayout() {
               `sidebar-link ${isActive ? "active" : ""}`
             }
           >
-            <span>◉</span> Global Chat
+            Global Chat
           </NavLink>
         </nav>
 
@@ -226,7 +370,7 @@ function WorkspaceLayout() {
         </div>
 
         <button className="sidebar-logout" onClick={handleLogout}>
-          ↪ Logout
+          Logout
         </button>
       </aside>
 

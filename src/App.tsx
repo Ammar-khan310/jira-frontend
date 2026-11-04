@@ -11,6 +11,7 @@ const CreateTicket = lazy(() => import("./components/CreateTicket"));
 const TicketList = lazy(() => import("./components/TicketList"));
 const GlobalChat = lazy(() => import("./components/GlobalChat"));
 const TicketDetails = lazy(() => import("./pages/TicketDetails"));
+const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 
 function App() {
   return (
@@ -23,6 +24,8 @@ function App() {
           <Route path="/signup" element={<Signup />} />
 
           <Route element={<ProtectedRoute />}>
+            <Route path="/accept-invite" element={<AcceptInvite />} />
+
             <Route element={<WorkspaceLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/create-ticket" element={<CreateTicket />} />
